@@ -1,0 +1,31 @@
+{
+  "name": "valorantapi",
+  "version": "1.0.0",
+  "description": "Welcome to the Valorant Competitive API, where you can get every stats and infos about tournments, teams and players!",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "test": "echo\"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Bruno6244bh/ValorantAPI.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Bruno6244bh/ValorantAPI/issues"
+  },
+  "homepage": "https://github.com/Bruno6244bh/ValorantAPI#readme",
+  "dependencies": {
+    "async-mutex": "^0.5.0",
+    "axios": "^1.6.8",
+    "cheerio": "^1.0.0-rc.12",
+    "express": "^4.19.2",
+    "nodemon": "^3.1.0",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7"
+  },
+  "type": "module"
+}
