@@ -92,23 +92,69 @@ const updatePlayers = async () => {
 
         const $ = cheerio.load(RostersSource);
 
-        const teamName = $('h1.wf-title').text().trim();
+        //const teamName = $('h1.wf-title').text().trim();
         //console.log(teamName);
 
-        $('div.team-roster-item:not(:has(.team-roster-item-name-role))').each((index, element) => {
+        $('div.team-roster-item:not(:has(.team-roster-item-name-role))').each(async(index, element) => {
             const player = {
                 nickname: $(element).find('div.team-roster-item-name-alias').text().trim(),
                 name: $(element).find('div.team-roster-item-name-real').text().trim(),
-                link: "https://www.vlr.gg" + $(element).find('a').attr('href')
+                link: "https://www.vlr.gg" + $(element).find('a').attr('href'),
+                team: $('h1.wf-title').text().trim()
             };
             playersCount++
-            //console.log(player);
+            await insertPlayer(player);
         });
 
         //console.log("-----------------");
     }
     console.log(playersCount, "players updated!")
 };
+
+// let linksList = []
+// let playersList = []
+
+// const updatePlayers = async () => {
+//     await getAllLinks(linksList); // Use await para garantir que getAllLinks terminou
+
+//     let playersCount = 0
+//     //console.log(linksList.length);
+
+//     for (const link of linksList) {
+//         const RostersSource = await fetchData(link);
+//         if (!RostersSource) continue; // Skip this iteration if fetchData failed
+
+//         const $ = cheerio.load(RostersSource);
+
+//         //const teamName = $('h1.wf-title').text().trim();
+//         //console.log(teamName);
+
+//         $('div.team-roster-item:not(:has(.team-roster-item-name-role))').each(async(index, element) => {
+//             const player = {
+//                 nickname: $(element).find('div.team-roster-item-name-alias').text().trim(),
+//                 name: $(element).find('div.team-roster-item-name-real').text().trim(),
+//                 link: "https://www.vlr.gg" + $(element).find('a').attr('href'),
+//                 team: $('h1.wf-title').text().trim()
+//             };
+//             playersCount++
+//             await playersList.push(player)
+//             //await insertPlayer(player);
+//         });
+
+//         //console.log("-----------------");
+//     }
+//     console.log(playersCount, "players updated!")
+//     console.log(playersList.length, "players waiting to be inserted")
+    
+//     async function insert() {
+//         for(let i = 0; i<= playersList.length; i++) {
+//             await insertPlayer(playersList[i])
+//         }
+//     }
+
+//     insert()
+
+// };
 
 
 const update = async () => {
@@ -117,6 +163,7 @@ const update = async () => {
 }
 
 update()
+
 
 
 //--------------------------------------------------UPCOMING MATCHES FUNCTION------------------------------------------------------------

@@ -6,7 +6,12 @@ export async function createTeamsTable() {
     })
 }
 
+let isInserting = false;
+const insertionQueue = [];
 
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 export async function insertTeam(team) {
     insertionQueue.push(team);
@@ -29,6 +34,7 @@ async function processQueue() {
             if (!existingTeam) {
                 await db.run('INSERT INTO Teams (name, region, link) VALUES (?, ?, ?)', [team.name, team.region, team.link]);
                 console.log('New team successfully inserted:', team.name);
+                await delay(2000);
             } else {
             }
 
