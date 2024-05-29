@@ -116,7 +116,7 @@ const update = async () => {
     await updatePlayers()
 }
 
-//update()
+update()
 
 
 //--------------------------------------------------UPCOMING MATCHES FUNCTION------------------------------------------------------------
