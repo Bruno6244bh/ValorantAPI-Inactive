@@ -5,12 +5,12 @@ import {openDb} from './configDB.js';
 import axios from 'axios'
 import cheerio from 'cheerio'
 import express from 'express'
-import { createTable, insertTeam, deleteAll } from './controller/teams.js'
+import { createTeamsTable, insertTeam, getAllLinks} from './controller/teams.js'
+import { createPlayersTable, insertPlayer, deleteAllPlayers} from './controller/players.js'
 import { Mutex } from 'async-mutex'
 
 const app = express();
 
-createTable();
 
 app.get('/', function(req, res){
     res.send("Hello World!")
@@ -24,134 +24,47 @@ const fetchData = async(url) => {
     return result.data;
 }
 
-//-----------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------UPDATE TEAMS INFO FUNCTION------------------------------------------------------------
 
-// var americasTeamsLink = [];
+let isWriting = false;
+const writeMutex = new Mutex();
 
-// const getTeamsRoster = async () => {
-//     const teamsLinkSource = await fetchData("https://www.vlr.gg/event/2004/champions-tour-2024-americas-stage-1/regular-season");
-//     const $ = cheerio.load(teamsLinkSource);
+async function updateTeams() {
 
-//     $('a.event-team-name').each((index, element) => {
+    let teamsCount = 0
 
-//         americasTeamsLink[index] = "https://www.vlr.gg" + $(element).attr('href');
-//         //console.log(americasTeamsLink[index])
-
-//     })
-
-//     for(let i = 0; i<= americasTeamsLink.length; i++) {
-
-//         const RostersSource = await fetchData(americasTeamsLink[i]);
-//         const $ = cheerio.load(RostersSource);
-
-//         const teamName = $('h1.wf-title').text().trim()
-//         console.log(teamName);
-
-//         $('div.team-roster-item-name:not(:has(.team-roster-item-name-role))').each((index, element) => {
-
-//             const playerName = $(element).find('div.team-roster-item-name-alias').text().trim()
-//             console.log(playerName);
-//         })
-
-//         console.log("-----------------");
-
-//     }
-// }
-
-// getTeamsRoster();
-
-//-----------------------------TEAMS UPDATE FUNCTIONS----------------------------------------------
-var teamsLink = [];
-var teamsName = [];
-var teamsRegion = [];
-
-const americasInfo = async () => {
-    const teamsList = await fetchData("https://www.vlr.gg/event/2004/champions-tour-2024-americas-stage-1/regular-season");
-    const $ = cheerio.load(teamsList);
-
-    $('a.event-team-name').each((index, element) => {
-        teamsLink.push("https://www.vlr.gg" + $(element).attr('href'));
-        teamsName.push($(element).text().trim());
-        teamsRegion.push("Americas");
-    });
-    await Promise.all(teamsLink.map(async (link) => {
-        const teamPath = await fetchData(link);
-    }));
-    console.log("Americas teams information has been updated successfully");
-}
-
-const emeaInfo = async () => {
-    const teamsList = await fetchData("https://www.vlr.gg/event/1998/champions-tour-2024-emea-stage-1/regular-season");
-    const $ = cheerio.load(teamsList);
-
-    $('a.event-team-name').each((index, element) => {
-        teamsLink.push("https://www.vlr.gg" + $(element).attr('href'));
-        teamsName.push($(element).text().trim());
-        teamsRegion.push("EMEA");
-    });
-    await Promise.all(teamsLink.map(async (link) => {
-        const teamPath = await fetchData(link);
-    }));
-    console.log("EMEA teams information has been updated successfully");
-}
-
-const pacificInfo = async () => {
-    const teamsList = await fetchData("https://www.vlr.gg/event/2002/champions-tour-2024-pacific-stage-1/regular-season");
-    const $ = cheerio.load(teamsList);
-
-    $('a.event-team-name').each((index, element) => {
-        teamsLink.push("https://www.vlr.gg" + $(element).attr('href'));
-        teamsName.push($(element).text().trim());
-        teamsRegion.push("Pacific");
-    });
-    await Promise.all(teamsLink.map(async (link) => {
-        const teamPath = await fetchData(link);
-    }));
-    console.log("Pacific teams information has been updated successfully");
-
-}
-
-const chinaInfo = async () => {
-    const teamsList = await fetchData("https://www.vlr.gg/event/2006/champions-tour-2024-china-stage-1/regular-season");
-    const $ = cheerio.load(teamsList);
-
-    $('a.event-team-name').each((index, element) => {
-        teamsLink.push("https://www.vlr.gg" + $(element).attr('href'));
-        teamsName.push($(element).text().trim());
-        teamsRegion.push("China");
-    });
-    await Promise.all(teamsLink.map(async (link) => {
-        const teamPath = await fetchData(link);
-    }));
-    console.log("Chinese teams information has been updated successfully");
-    
-}
-
-  //------------------------------INSERT TEAMS IN DATABASE----------------------
-
-
-let isWriting = false; // Variável de estado para controlar o acesso ao banco de dados
-const writeMutex = new Mutex(); // Mutex para garantir exclusão mútua durante operações de escrita
-
-async function insertTeamsDb() {
     if (isWriting) {
         console.log('Uma operação de escrita já está em andamento. Aguardando...');
         return;
     }
 
     try {
-        const release = await writeMutex.acquire(); // Adquire o bloqueio antes de iniciar a operação de escrita
-        isWriting = true; // Marcar que uma operação de escrita está em andamento
+        const release = await writeMutex.acquire();
+        isWriting = true;
 
-        for (let i = 0; i < 44; i++) {
-            await insertTeam({
-                name: teamsName[i],
-                region: teamsRegion[i],
-                link: teamsLink[i]
+        const regions = [
+            { url: "https://www.vlr.gg/event/2004/champions-tour-2024-americas-stage-1/regular-season", region: "Americas" },
+            { url: "https://www.vlr.gg/event/1998/champions-tour-2024-emea-stage-1/regular-season", region: "EMEA" },
+            { url: "https://www.vlr.gg/event/2002/champions-tour-2024-pacific-stage-1/regular-season", region: "Pacific" },
+            { url: "https://www.vlr.gg/event/2006/champions-tour-2024-china-stage-1/regular-season", region: "China" }
+        ];
+
+        for (let region of regions) {
+            const teamsList = await fetchData(region.url);
+            const $ = cheerio.load(teamsList);
+
+            $('a.event-team-name').each(async (index, element) => {
+                const team = {
+                    name: $(element).text().trim(),
+                    region: region.region,
+                    link: "https://www.vlr.gg" + $(element).attr('href')
+                };
+                //console.log(`Listed team ${team.name} from ${team.region}`);
+                teamsCount++
+                await insertTeam(team);
             });
         }
 
-        // Liberar o bloqueio apenas se for adquirido com sucesso
         release();
 
     } catch (error) {
@@ -159,75 +72,105 @@ async function insertTeamsDb() {
     } finally {
         isWriting = false; // Resetar a variável de estado após a conclusão da operação de escrita
     }
+    console.log(teamsCount, "teams updated!")
 }
 
-    //------------------------------UPDATE TEAMS----------------------
 
-async function updateTeams() {
-    try {
-        await americasInfo();
-        await emeaInfo();
-        await pacificInfo();
-        await chinaInfo();
-        await console.log(teamsName.length, "Teams updated successfully")
-        await insertTeamsDb();
-    } catch (error) {
-        console.error('Ocorreu um erro:', error);
+//--------------------------------------------------UPDATE PLAYERS INFO FUNCTION------------------------------------------------------------
+
+let linksList = []
+
+const updatePlayers = async () => {
+    await getAllLinks(linksList); // Use await para garantir que getAllLinks terminou
+
+    let playersCount = 0
+    //console.log(linksList.length);
+
+    for (const link of linksList) {
+        const RostersSource = await fetchData(link);
+        if (!RostersSource) continue; // Skip this iteration if fetchData failed
+
+        const $ = cheerio.load(RostersSource);
+
+        const teamName = $('h1.wf-title').text().trim();
+        //console.log(teamName);
+
+        $('div.team-roster-item:not(:has(.team-roster-item-name-role))').each((index, element) => {
+            const player = {
+                nickname: $(element).find('div.team-roster-item-name-alias').text().trim(),
+                name: $(element).find('div.team-roster-item-name-real').text().trim(),
+                link: "https://www.vlr.gg" + $(element).find('a').attr('href')
+            };
+            playersCount++
+            //console.log(player);
+        });
+
+        //console.log("-----------------");
     }
+    console.log(playersCount, "players updated!")
+};
+
+
+const update = async () => {
+    await updateTeams()
+    await updatePlayers()
 }
 
-//Uncomment below to run "Update teams function"
-//updateTeams();
+//update()
 
 
-
-
-
-//--------------------------------------------------UPCOMING MATCHES FUNCTIONS------------------------------------------------------------
+//--------------------------------------------------UPCOMING MATCHES FUNCTION------------------------------------------------------------
 
 const upcMatches = async () => {
     const contentMatches = await fetchData("https://www.vlr.gg/matches");
     const $ = cheerio.load(contentMatches);
+    let matchList = [];
 
-    $('a.wf-module-item.match-item.mod-color.mod-left.mod-bg-after-striped_purple').each((index, element) => {
+    // Selecionar elementos relevantes uma vez
+    const matchItems = $('a.wf-module-item.match-item.mod-color.mod-left.mod-bg-after-striped_purple');
 
+    matchItems.each((index, element) => {
         const matchStatus = $(element).find('.ml-status').text().trim();
         if (matchStatus === "Upcoming") {
-
-            const teams = $(element).find('.match-item-vs-team-name .text-of')
-            const team1 = teams.first().text().trim();
-            const team2 = teams.last().text().trim();
-
-            //Get match date
+            const teams = $(element).find('.match-item-vs-team-name .text-of');
             const matchDivParent = $(element).parent();
-            const date = matchDivParent.prev().text().trim().replace(/\s+/g, ' ')
-            //Get match time
-            const time = $(element).find('.match-item-time').text().trim(); 
-            //Get tournment infos
             const event = $(element).find('.match-item-event').text().trim().replace(/\s+/g, ' ');
             const splitTournmentName = event.split(/Champions/);
+
+            const team1 = teams.first().text().trim();
+            const team2 = teams.last().text().trim();
+            const date = matchDivParent.prev().text().trim().replace(/\s+/g, ' ');
+            const time = $(element).find('.match-item-time').text().trim();
             const tournmentPhase = splitTournmentName[0].trim();
             const eventName = ("Champions" + splitTournmentName[1]).trim();
 
-            //print upcoming matches infos: teams name, date, time and tornment infos
-            console.log(`${team1} vs ${team2}`);
-            console.log(date);
-            console.log(time, "gmt -3");
-            console.log(tournmentPhase);
-            console.log(eventName);
-            console.log('---');
+            const newMatch = {
+                team1,
+                team2,
+                date,
+                time,
+                tournmentPhase,
+                eventName
+            };
+
+            matchList.push(newMatch);
         }
-     });
+    });
+
+    console.log(matchList.slice(0, 5));
 }
 
-//Uncomment below to run "Upcoming Matches function"
+// Uncomment below to run "Upcoming Matches function"
 //upcMatches();
 
-//--------------------------------------------------LIVE MATCHES FUNCTIONS------------------------------------------------------------
+
+//--------------------------------------------------LIVE MATCHES FUNCTION------------------------------------------------------------
 
 const liveMatches = async () => {
     const contentMatches = await fetchData("https://www.vlr.gg/matches");
     const $ = cheerio.load(contentMatches);
+
+    let liveList = [];
 
     $('a.wf-module-item.match-item.mod-color.mod-left.mod-bg-after-striped_purple').each((index, element) => {
 
@@ -245,6 +188,8 @@ const liveMatches = async () => {
                 const $ = cheerio.load(matchPath);
 
                 let liveTeam1, liveTeam2, liveScoreTeam1, liveScoreTeam2, map;
+                let maps = []
+                let overallScore
 
 
                 //Get teams name
@@ -266,8 +211,7 @@ const liveMatches = async () => {
                 //Verify if it's a MD3 match or MD5
                 const howMuchMaps = $('.vm-stats-game').length
 
-                //Print Overall scoreboard
-                console.log(liveTeam1, team1score, ":", team2score, liveTeam2);
+                overallScore = `${liveTeam1} ${team1score} : ${team2score} ${liveTeam2}`
 
                 //Map by map score
                 for (let i = 0; i < howMuchMaps; i++) {
@@ -289,26 +233,36 @@ const liveMatches = async () => {
                             case 3:
                                 map = $('.vm-stats-gamesnav-item').eq(3).find('div').text().trim();
                                 break;
+                            case 4:
+                                map = $('.vm-stats-gamesnav-item').eq(4).find('div').text().trim();
+                                break;
+                            case 5:
+                                map = $('.vm-stats-gamesnav-item').eq(5).find('div').text().trim();
+                                break;
                         }
                 
                         map = map.replace(/\d+/g, '').replace(/\s+/g, '').trim();
-
-
-                        //Print the maps with their respective scores
-                        console.log(map, "-", liveScoreTeam1 + ":" + liveScoreTeam2);
+                        maps.push(map, "-", liveScoreTeam1 + ":" + liveScoreTeam2)
 
                     }
                 }
 
-                //Get and print stream link
+                //Get stream link
                 const streamLink = $(".match-streams-btn").find("a.match-streams-btn-external").attr('href')
-                console.log("Watch on: ", streamLink)
+                
+                const match = {
+                    overallScore,
+                    maps,
+                    streamLink
+                }
+
+                liveList.push(match)
+                console.log(liveList)
 
             }
             matchData();
         }
     });
 }
-//Uncomment below to run "Live Matches function"
-liveMatches();
 
+//liveMatches();
