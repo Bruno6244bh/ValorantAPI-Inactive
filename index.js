@@ -5,8 +5,8 @@ import {openDb} from './configDB.js';
 import axios from 'axios'
 import cheerio from 'cheerio'
 import express from 'express'
-import { createTeamsTable, insertTeam, getAllLinks} from './controller/teams.js'
-import { createPlayersTable, insertPlayer, deleteAllPlayers} from './controller/players.js'
+import { createTeamsTable, insertTeam, getAllLinks, getAllTeams, deleteTeam} from './controller/teams.js'
+import { createPlayersTable, insertPlayer, deleteAllPlayers, getAllPlayers, deletePlayer} from './controller/players.js'
 import { Mutex } from 'async-mutex'
 
 const app = express();
@@ -28,10 +28,12 @@ const fetchData = async(url) => {
 
 let isWriting = false;
 const writeMutex = new Mutex();
+let teamsArray = []
+
+let databaseTeamsList = []
+let updateTeamsList = []
 
 async function updateTeams() {
-
-    let teamsCount = 0
 
     if (isWriting) {
         console.log('Uma operação de escrita já está em andamento. Aguardando...');
@@ -60,7 +62,8 @@ async function updateTeams() {
                     link: "https://www.vlr.gg" + $(element).attr('href')
                 };
                 //console.log(`Listed team ${team.name} from ${team.region}`);
-                teamsCount++
+                updateTeamsList.push(team.name)
+                teamsArray.push(team);
                 await insertTeam(team);
             });
         }
@@ -72,28 +75,35 @@ async function updateTeams() {
     } finally {
         isWriting = false; // Resetar a variável de estado após a conclusão da operação de escrita
     }
-    console.log(teamsCount, "teams updated!")
+    console.log(updateTeamsList.length, "Teams found in update")
+}
+
+async function excludeTeam(array1, array2) {
+    let toExclude = await (async () => {
+        return array1.filter(name => !array2.includes(name));
+    })();
+    await deleteTeam(toExclude);
 }
 
 
 //--------------------------------------------------UPDATE PLAYERS INFO FUNCTION------------------------------------------------------------
 
+let databasePlayerList = []
+let updatePlayerList = []
+
 let linksList = []
+let playersArray = []
 
 const updatePlayers = async () => {
-    await getAllLinks(linksList); // Use await para garantir que getAllLinks terminou
+    await getAllLinks(linksList); 
 
     let playersCount = 0
-    //console.log(linksList.length);
 
     for (const link of linksList) {
         const RostersSource = await fetchData(link);
-        if (!RostersSource) continue; // Skip this iteration if fetchData failed
+        if (!RostersSource) continue;
 
         const $ = cheerio.load(RostersSource);
-
-        //const teamName = $('h1.wf-title').text().trim();
-        //console.log(teamName);
 
         $('div.team-roster-item:not(:has(.team-roster-item-name-role))').each(async(index, element) => {
             const player = {
@@ -102,68 +112,33 @@ const updatePlayers = async () => {
                 link: "https://www.vlr.gg" + $(element).find('a').attr('href'),
                 team: $('h1.wf-title').text().trim()
             };
+            updatePlayerList.push(player.nickname)
             playersCount++
+            playersArray.push(player)
             await insertPlayer(player);
         });
 
-        //console.log("-----------------");
     }
-    console.log(playersCount, "players updated!")
+    console.log(updatePlayerList.length, "players found in update")
 };
 
-// let linksList = []
-// let playersList = []
-
-// const updatePlayers = async () => {
-//     await getAllLinks(linksList); // Use await para garantir que getAllLinks terminou
-
-//     let playersCount = 0
-//     //console.log(linksList.length);
-
-//     for (const link of linksList) {
-//         const RostersSource = await fetchData(link);
-//         if (!RostersSource) continue; // Skip this iteration if fetchData failed
-
-//         const $ = cheerio.load(RostersSource);
-
-//         //const teamName = $('h1.wf-title').text().trim();
-//         //console.log(teamName);
-
-//         $('div.team-roster-item:not(:has(.team-roster-item-name-role))').each(async(index, element) => {
-//             const player = {
-//                 nickname: $(element).find('div.team-roster-item-name-alias').text().trim(),
-//                 name: $(element).find('div.team-roster-item-name-real').text().trim(),
-//                 link: "https://www.vlr.gg" + $(element).find('a').attr('href'),
-//                 team: $('h1.wf-title').text().trim()
-//             };
-//             playersCount++
-//             await playersList.push(player)
-//             //await insertPlayer(player);
-//         });
-
-//         //console.log("-----------------");
-//     }
-//     console.log(playersCount, "players updated!")
-//     console.log(playersList.length, "players waiting to be inserted")
-    
-//     async function insert() {
-//         for(let i = 0; i<= playersList.length; i++) {
-//             await insertPlayer(playersList[i])
-//         }
-//     }
-
-//     insert()
-
-// };
-
+async function excludePlayer(array1, array2) {
+    let toExclude = await (async () => {
+        return array1.filter(name => !array2.includes(name));
+    })();
+    await deletePlayer(toExclude);
+}
 
 const update = async () => {
     await updateTeams()
+    await getAllTeams (databaseTeamsList)
+    await excludeTeam(databaseTeamsList, updateTeamsList)
     await updatePlayers()
+    await getAllPlayers(databasePlayerList)
+    await excludePlayer(databasePlayerList, updatePlayerList)
+    await console.log("Database updated successfully")
 }
-
 update()
-
 
 
 //--------------------------------------------------UPCOMING MATCHES FUNCTION------------------------------------------------------------
@@ -313,3 +288,13 @@ const liveMatches = async () => {
 }
 
 //liveMatches();
+
+//--------------FINALIZAR------------
+
+app.get('/shutdown', (req, res) => {
+    console.log('Encerrando o servidor...');
+    server.close(() => {
+        console.log('Servidor encerrado.');
+        process.exit(0); // Finaliza o processo Node.js
+    });
+});
