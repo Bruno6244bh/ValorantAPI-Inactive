@@ -1,13 +1,12 @@
-//const axios = require('axios');
-//const express = require ('express');
-//const cheerio = require('cheerio');
 import {openDb} from './configDB.js';
 import axios from 'axios'
 import cheerio from 'cheerio'
 import express from 'express'
 import { createTeamsTable, insertTeam, getAllLinks, getAllTeams, deleteTeam} from './controller/teams.js'
 import { createPlayersTable, insertPlayer, deleteAllPlayers, getAllPlayers, deletePlayer} from './controller/players.js'
+import {createStatsTable, insertStats} from './controller/stats.js'
 import { Mutex } from 'async-mutex'
+
 
 const app = express();
 
@@ -23,6 +22,8 @@ const fetchData = async(url) => {
     const result = await axios.get(url);
     return result.data;
 }
+
+
 
 //--------------------------------------------------UPDATE TEAMS INFO FUNCTION------------------------------------------------------------
 
@@ -138,7 +139,8 @@ const update = async () => {
     await excludePlayer(databasePlayerList, updatePlayerList)
     await console.log("Database updated successfully")
 }
-update()
+
+//update()
 
 
 //--------------------------------------------------UPCOMING MATCHES FUNCTION------------------------------------------------------------
@@ -182,7 +184,6 @@ const upcMatches = async () => {
     console.log(matchList.slice(0, 5));
 }
 
-// Uncomment below to run "Upcoming Matches function"
 //upcMatches();
 
 
@@ -289,12 +290,84 @@ const liveMatches = async () => {
 
 //liveMatches();
 
-//--------------FINALIZAR------------
 
-app.get('/shutdown', (req, res) => {
-    console.log('Encerrando o servidor...');
-    server.close(() => {
-        console.log('Servidor encerrado.');
-        process.exit(0); // Finaliza o processo Node.js
+const Initiator = ['Sova','Breach','Skye','Kayo','Fade','Gekko']
+const Duelist = ['Phoenix','Reyna','Jett','Raze','Yoru','Neon','Iso']
+const Controller = ['Brimstone','Viper','Omen','Astra','Harbor','Clove']
+const Sentinel = ['Sage','Cypher','Killjoy','Chamber','Deadlock']
+
+
+//-------------------------GET PLAYER STATS FUNCTION-------------------------
+
+const playerStats = []
+
+const extractId = (url) => {
+    const regex = /vlr\.gg\/(\d+)/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+};
+
+const getPlayerStats = async ($, matchId) => {
+    
+
+    const rawDate = $('div.match-header-date > div.moment-tz-convert:first-child').attr('data-utc-ts')
+    const dateRegex = /^(\d{4}-\d{2}-\d{2})/;
+    const match = rawDate.match(dateRegex)
+    const event = $('.match-header-event > div > div:first-child').text().trim();
+    const phase = $('div.match-header-event-series').text().trim()
+
+    $('div.vm-stats-game').eq(1).find('table.wf-table-inset.mod-overview tbody tr').each((index, element) => {
+        const player = $(element).find('td.mod-player div.text-of').text().trim();
+
+        const stats = {
+            match_id: matchId,
+            date: match[1],
+            event: event,
+            phase: phase.replace(/\n\s*/, ''),
+            player: player,
+            //agents: pickedAgents,
+            acs: $(element).find('td.mod-stat').eq(1).text().trim(),
+            kills: $(element).find('td.mod-stat').eq(2).text().trim(),
+            deaths: $(element).find('.mod-vlr-deaths .side.mod-both').text().trim(),
+            assists: $(element).find('td.mod-stat').eq(4).text().trim(),
+            adr: $(element).find('td.mod-stat').eq(7).text().trim(),
+            hs: $(element).find('td.mod-stat').eq(8).text().trim(),
+            fk: $(element).find('td.mod-stat').eq(9).text().trim(),
+            fd: $(element).find('td.mod-stat').eq(10).text().trim(),
+        };
+
+        playerStats.push(stats);
+        insertStats(playerStats);
+        
     });
-});
+
+};
+
+const getMatchUrl = async () => {
+    const matches = await fetchData("https://www.vlr.gg/event/matches/1999/champions-tour-2024-masters-shanghai/?series_id=all&group=completed");
+    const $ = cheerio.load(matches);
+
+    let links = [];
+
+    $('a.wf-module-item.match-item').each((index, element) => {
+        links.push("https://vlr.gg" + $(element).attr('href'));
+    });
+
+    links.reverse();
+
+    const allPlayerStats = [];
+
+    for (let link of links) {
+        const matchPage = await fetchData(link);
+        const $$ = cheerio.load(matchPage);
+
+        const matchId = extractId(link);
+        const getFunction = getPlayerStats($$, matchId);
+
+    }
+
+};
+
+//getMatchUrl();
+
+

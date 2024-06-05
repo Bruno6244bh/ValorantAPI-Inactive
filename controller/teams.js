@@ -97,7 +97,6 @@ export async function getAllLinks(array) {
 
         if (links.length > 0) {
             links.forEach(linkObj => {
-                //console.log(linkObj.link);
                  array.push(linkObj.link)
             });
         } else {

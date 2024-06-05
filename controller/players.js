@@ -5,7 +5,7 @@ export async function createPlayersTable() {
         db.exec('CREATE TABLE IF NOT EXISTS Players (id INTEGER PRIMARY KEY, nickname TEXT, name TEXT, link TEXT, team TEXT, FOREIGN KEY (team) REFERENCES Teams(name))')
     })
 }
-
+ 
 let isInserting = false;
 const insertionQueue = [];
 
