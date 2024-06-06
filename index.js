@@ -4,7 +4,7 @@ import cheerio from 'cheerio'
 import express from 'express'
 import { createTeamsTable, insertTeam, getAllLinks, getAllTeams, deleteTeam} from './controller/teams.js'
 import { createPlayersTable, insertPlayer, deleteAllPlayers, getAllPlayers, deletePlayer} from './controller/players.js'
-import {createStatsTable, insertStats} from './controller/stats.js'
+import {createStatsTable, insertStats, getStdData} from './controller/stats.js'
 import { Mutex } from 'async-mutex'
 
 
@@ -369,5 +369,10 @@ const getMatchUrl = async () => {
 };
 
 //getMatchUrl();
+
+
+getStdData()
+
+
 
 

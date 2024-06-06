@@ -59,3 +59,239 @@ export async function insertStats(statsArray) {
         }
     }
 }
+
+//--------------------------------------------------Funções para cálculo de rating--------------------------------------------------
+
+let ArrayData = []
+let arraySqrtData = []
+
+function quadrado(numero) {
+    return numero * numero;
+}
+
+//Essa função realiza o cálculo de Desvio padrão
+
+function getStd() {
+
+    const sum = ArrayData.reduce((accumulator, currentValue) => {
+        return accumulator + currentValue;
+    }, 0);
+    
+
+    let media = sum / ArrayData.length
+
+    console.log("Data average:", media);
+
+    for(let i = 0; i < ArrayData.length; i++) {
+        arraySqrtData[i] = ArrayData[i] - media
+        arraySqrtData[i] = quadrado(arraySqrtData[i])
+    }
+
+    const sum2 = arraySqrtData.reduce((accumulator, currentValue) => {
+        return accumulator + currentValue;
+    }, 0);
+
+    let somao = sum2/arraySqrtData.length
+
+    //console.log("A soma dos quadrados da diferença entre cada item e a média é:", somao)
+    console.log("Standard deviation:", Math.sqrt(somao))
+    console.log("-------------------------------------------")
+
+
+
+    ArrayData = []
+    arraySqrtData = []
+}
+
+//Essa função pega os dados da table e coloca no array pra executar o cáculo
+
+export async function getStdData () {
+
+    for(let i = 0; i < 8; i++) {
+        switch (i) {
+            case (0):
+                try {
+                    const db = await openDb();
+                    const combat = await db.all('SELECT acs FROM Stats');
+            
+                    if (combat.length > 0) {
+                        combat.forEach(linkObj => {
+                            ArrayData.push(linkObj.acs)
+                        });
+                    } else {
+                        console.log('No data found in the stats table.');
+                    }
+                } catch (error) {
+                    console.error('Error fetching links:', error);
+                }
+                //console.log(ArrayData.length, "itens found in database")
+                console.log("Calculating ACS standard deviation")
+            
+                getStd()
+                break;
+            case (1):
+                try {
+                    const db = await openDb();
+                    const combat = await db.all('SELECT kills FROM Stats');
+            
+                    if (combat.length > 0) {
+                        combat.forEach(linkObj => {
+                            ArrayData.push(linkObj.kills)
+                        });
+                    } else {
+                        console.log('No data found in the stats table.');
+                    }
+                } catch (error) {
+                    console.error('Error fetching links:', error);
+                }
+                //console.log(ArrayData.length, "itens found in database")
+                console.log("Calculating Kills standard deviation")
+            
+                getStd()
+                break;
+            case (2):
+                try {
+                    const db = await openDb();
+                    const combat = await db.all('SELECT deaths FROM Stats');
+            
+                    if (combat.length > 0) {
+                        combat.forEach(linkObj => {
+                            ArrayData.push(linkObj.deaths)
+                        });
+                    } else {
+                        console.log('No data found in the stats table.');
+                    }
+                } catch (error) {
+                    console.error('Error fetching links:', error);
+                }
+                //console.log(ArrayData.length, "itens found in database")
+                console.log("Calculating deaths standard deviation")
+            
+                getStd()
+                break;
+            case (3):
+                try {
+                    const db = await openDb();
+                    const combat = await db.all('SELECT assists FROM Stats');
+            
+                    if (combat.length > 0) {
+                        combat.forEach(linkObj => {
+                            ArrayData.push(linkObj.assists)
+                        });
+                    } else {
+                        console.log('No data found in the stats table.');
+                    }
+                } catch (error) {
+                    console.error('Error fetching links:', error);
+                }
+                //console.log(ArrayData.length, "itens found in database")
+                console.log("Calculating assists standard deviation")
+            
+                getStd()
+                break;
+            case (4):
+                try {
+                    const db = await openDb();
+                    const combat = await db.all('SELECT adr FROM Stats');
+            
+                    if (combat.length > 0) {
+                        combat.forEach(linkObj => {
+                            ArrayData.push(linkObj.adr)
+                        });
+                    } else {
+                        console.log('No data found in the stats table.');
+                    }
+                } catch (error) {
+                    console.error('Error fetching links:', error);
+                }
+                //console.log(ArrayData.length, "itens found in database")
+                console.log("Calculating adr standard deviation")
+            
+                getStd()
+                break;
+            case (5):
+                try {
+                    const db = await openDb();
+                    const combat = await db.all('SELECT hs FROM Stats');
+            
+                    if (combat.length > 0) {
+                        combat.forEach(linkObj => {
+                            ArrayData.push(linkObj.hs)
+                        });
+                    } else {
+                        console.log('No data found in the stats table.');
+                    }
+                } catch (error) {
+                    console.error('Error fetching links:', error);
+                }
+                //console.log(ArrayData.length, "itens found in database")
+                console.log("Calculating hs standard deviation")
+            
+                getStd()
+                break;
+            case (6):
+                try {
+                    const db = await openDb();
+                    const combat = await db.all('SELECT fk FROM Stats');
+            
+                    if (combat.length > 0) {
+                        combat.forEach(linkObj => {
+                            ArrayData.push(linkObj.fk)
+                        });
+                    } else {
+                        console.log('No data found in the stats table.');
+                    }
+                } catch (error) {
+                    console.error('Error fetching links:', error);
+                }
+                //console.log(ArrayData.length, "itens found in database")
+                console.log("Calculating first kills standard deviation")
+            
+                getStd()
+                break;
+            case (7):
+                try {
+                    const db = await openDb();
+                    const combat = await db.all('SELECT fd FROM Stats');
+            
+                    if (combat.length > 0) {
+                        combat.forEach(linkObj => {
+                            ArrayData.push(linkObj.fd)
+                        });
+                    } else {
+                        console.log('No data found in the stats table.');
+                    }
+                } catch (error) {
+                    console.error('Error fetching links:', error);
+                }
+                //console.log(ArrayData.length, "itens found in database")
+                console.log("Calculating first deaths standard deviation")
+            
+                getStd()
+                break;
+        }
+    }
+
+
+
+    // try {
+    //     const db = await openDb();
+    //     const combat = await db.all('SELECT kills FROM Stats');
+
+    //     if (combat.length > 0) {
+    //         combat.forEach(linkObj => {
+    //             ArrayData.push(linkObj.kills)
+    //         });
+    //     } else {
+    //         console.log('No acs found in the stats table.');
+    //     }
+    // } catch (error) {
+    //     console.error('Error fetching links:', error);
+    // }
+    // console.log(ArrayData.length, "acs stats found in database")
+    // console.log("Base ACS", ArrayData)
+
+    // getStd()
+
+}
+
