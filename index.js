@@ -2,9 +2,9 @@ import {openDb} from './configDB.js';
 import axios from 'axios'
 import cheerio from 'cheerio'
 import express from 'express'
-import { createTeamsTable, insertTeam, getAllLinks, getAllTeams, deleteTeam} from './controller/teams.js'
+import { createTeamsTable, insertTeam, getAllLinks, getAllTeams, deleteTeam, deleteTeamsTable} from './controller/teams.js'
 import { createPlayersTable, insertPlayer, deleteAllPlayers, getAllPlayers, deletePlayer} from './controller/players.js'
-import {createStatsTable, insertStats, getStdData} from './controller/stats.js'
+import {createStatsTable, insertStats, getStdData, deleteStatsTable,} from './controller/vctMastersShanghai.js'
 import { Mutex } from 'async-mutex'
 
 
@@ -22,7 +22,6 @@ const fetchData = async(url) => {
     const result = await axios.get(url);
     return result.data;
 }
-
 
 
 //--------------------------------------------------UPDATE TEAMS INFO FUNCTION------------------------------------------------------------
@@ -57,12 +56,21 @@ async function updateTeams() {
             const $ = cheerio.load(teamsList);
 
             $('a.event-team-name').each(async (index, element) => {
+
+                let link = $(element).attr('href')
+                const regexId = /\/(\d+)\//;
+                let teamId = link.match(regexId)
+                const regexLinkName = /\/\d+\/([a-zA-Z0-9-]+)/;
+                let linkName = link.match(regexLinkName)
+
+
                 const team = {
                     name: $(element).text().trim(),
                     region: region.region,
-                    link: "https://www.vlr.gg" + $(element).attr('href')
+                    link: "https://www.vlr.gg" + link,
+                    team_id: teamId[1],
+                    link_name: linkName[1],
                 };
-                //console.log(`Listed team ${team.name} from ${team.region}`);
                 updateTeamsList.push(team.name)
                 teamsArray.push(team);
                 await insertTeam(team);
@@ -130,17 +138,7 @@ async function excludePlayer(array1, array2) {
     await deletePlayer(toExclude);
 }
 
-const update = async () => {
-    await updateTeams()
-    await getAllTeams (databaseTeamsList)
-    await excludeTeam(databaseTeamsList, updateTeamsList)
-    await updatePlayers()
-    await getAllPlayers(databasePlayerList)
-    await excludePlayer(databasePlayerList, updatePlayerList)
-    await console.log("Database updated successfully")
-}
 
-//update()
 
 
 //--------------------------------------------------UPCOMING MATCHES FUNCTION------------------------------------------------------------
@@ -316,8 +314,42 @@ const getPlayerStats = async ($, matchId) => {
     const event = $('.match-header-event > div > div:first-child').text().trim();
     const phase = $('div.match-header-event-series').text().trim()
 
+    let rounds = 0
+
+    let overall1 = parseInt($('span.match-header-vs-score-winner').text().trim())
+    let overall2 = parseInt($('span.match-header-vs-score-loser').text().trim())
+    
+    if(overall1 + overall2 === 3) {
+    for (let i = 0; i<6; i++) {
+        let score = parseInt($('div.score').eq(i).text().trim())
+        rounds = rounds + score
+        }
+    }else {
+        for (let i = 0; i<4; i++) {
+            let score = parseInt($('div.score').eq(i).text().trim())
+            rounds = rounds + score
+            }
+    }
+    
+
     $('div.vm-stats-game').eq(1).find('table.wf-table-inset.mod-overview tbody tr').each((index, element) => {
+
+        let opponent
+
+        if(index == 0 || index == 1 || index == 2 || index == 3 || index == 4 ) {
+             opponent = $('div.wf-title-med').eq(1).text().trim()
+        }else {
+             opponent = $('div.wf-title-med').eq(0).text().trim()
+        }
+
         const player = $(element).find('td.mod-player div.text-of').text().trim();
+        const hs = $(element).find('td.mod-stat').eq(8).text().trim()
+        const kpr = parseInt($(element).find('td.mod-stat').eq(2).text().trim())/rounds
+        const dpr = parseInt($(element).find('.mod-vlr-deaths .side.mod-both').text().trim())/rounds
+        const apr = parseInt($(element).find('td.mod-stat').eq(4).text().trim())/rounds
+        const fkpr = parseInt($(element).find('td.mod-stat').eq(9).text().trim())/rounds
+        const fdpr = parseInt($(element).find('td.mod-stat').eq(10).text().trim())/rounds
+        const srv = ((rounds - parseInt($(element).find('.mod-vlr-deaths .side.mod-both').text().trim()))*100)/rounds
 
         const stats = {
             match_id: matchId,
@@ -325,15 +357,21 @@ const getPlayerStats = async ($, matchId) => {
             event: event,
             phase: phase.replace(/\n\s*/, ''),
             player: player,
-            //agents: pickedAgents,
+            opponent: opponent,
             acs: $(element).find('td.mod-stat').eq(1).text().trim(),
             kills: $(element).find('td.mod-stat').eq(2).text().trim(),
             deaths: $(element).find('.mod-vlr-deaths .side.mod-both').text().trim(),
             assists: $(element).find('td.mod-stat').eq(4).text().trim(),
             adr: $(element).find('td.mod-stat').eq(7).text().trim(),
-            hs: $(element).find('td.mod-stat').eq(8).text().trim(),
+            hs: hs.replace('%', ''),
             fk: $(element).find('td.mod-stat').eq(9).text().trim(),
             fd: $(element).find('td.mod-stat').eq(10).text().trim(),
+            kpr: kpr,
+            dpr: dpr,
+            apr: apr,
+            fkpr: fkpr,
+            fdpr: fdpr,
+            srv: srv
         };
 
         playerStats.push(stats);
@@ -371,7 +409,27 @@ const getMatchUrl = async () => {
 //getMatchUrl();
 
 
-getStdData()
+//getStdData()
+
+const update = async () => {
+    await updateTeams()
+    await getAllTeams (databaseTeamsList)
+    await excludeTeam(databaseTeamsList, updateTeamsList)
+    await updatePlayers()
+    await getAllPlayers(databasePlayerList)
+    await excludePlayer(databasePlayerList, updatePlayerList)
+    await getMatchUrl();
+    await getStdData()
+    await console.log("Database updated successfully")
+}
+
+//update()
+
+
+
+
+
+
 
 
 

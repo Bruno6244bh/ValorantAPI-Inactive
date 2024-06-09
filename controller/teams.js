@@ -2,7 +2,14 @@ import {openDb} from '../configDB.js';
 
 export async function createTeamsTable() {
     openDb().then(db=>{
-        db.exec('CREATE TABLE IF NOT EXISTS Teams (id INTEGER PRIMARY KEY, name TEXT, region TEXT, link TEXT) ')
+        db.exec('CREATE TABLE IF NOT EXISTS Teams (id INTEGER PRIMARY KEY, name TEXT, region TEXT, link TEXT, teamId TEXT, linkName TEXT) ')
+    })
+}
+
+export async function deleteTeamsTable () {
+    openDb().then(db=> {
+        db.exec('DROP TABLE IF EXISTS teams')
+        console.log("Tabela teams apagada com sucesso!")
     })
 }
 
@@ -32,7 +39,7 @@ async function processQueue() {
             const existingTeam = await db.get('SELECT * FROM Teams WHERE name = ? OR link = ?', [team.name, team.link]);
 
             if (!existingTeam) {
-                await db.run('INSERT INTO Teams (name, region, link) VALUES (?, ?, ?)', [team.name, team.region, team.link]);
+                await db.run('INSERT INTO Teams (name, region, link, teamId, linkName) VALUES (?, ?, ?, ?, ?)', [team.name, team.region, team.link, team.team_id, team.link_name]);
                 console.log('New team successfully inserted:', team.name);
                 await delay(2000);
             } else {
